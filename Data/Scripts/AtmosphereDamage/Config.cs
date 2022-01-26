@@ -11,12 +11,15 @@ namespace AtmosphericDamage
         /////////////////////CHANGE THESE FOR EACH PLANET////////////////////////////
 
         public const string PLANET_NAME = "Bylen"; // this mod targets planet Bylen
-        public const float LARGE_SHIP_DAMAGE = 1000f; // applies 1000 damage to each block per update at 30km
-        public const float SMALL_SHIP_DAMAGE = 1000f;
+        public const float LARGE_SHIP_ATMO_DAMAGE = 1000f; // applies 1000 damage to each block per update in the atmosphere
+        public const float SMALL_SHIP_ATMO_DAMAGE = 1000f;
+        public const float PLAYER_ATMO_DAMAGE = 100f;
+        public const float LARGE_SHIP_RAD_DAMAGE = 1000f; // applies 1000 damage (scaled by area) to each block per update at the top of the atmosphere
+        public const float SMALL_SHIP_RAD_DAMAGE = 1000f;
+        public const float PLAYER_RAD_DAMAGE = 100f;
         public const string DAMAGE_STRING = PLANET_NAME + "Atmosphere";
-        public const float PLAYER_DAMAGE_AMOUNT = 100f;
-        public const float OVERRIDE_ATMOSPHERE_HEIGHT = 200000f;
-        public const float ATMOSPHERE_DAMAGE_EXPONENT = 30f; // Divides damage by 30 for every extra 30km
+        public const float RADIATION_HEIGHT = 400000f;
+        public const float RADIATION_FALLOFF_DIST = 3000f; // inverse square falloff distance
 
         public const double EMITTER_DRAW_DIST = 10000;
         /////////////////////////////////////////////////////////////////////////////

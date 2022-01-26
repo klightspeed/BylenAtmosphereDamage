@@ -24,7 +24,7 @@ namespace AtmosphericDamage
         {
             var block = blocks.GetRandomItemFromList();
             var posInt = grid.GridIntegerToWorld(block.Position);
-            var posExt = posInt + direction * grid.LocalVolume.Radius * 2;
+            var posExt = posInt - direction * grid.LocalVolume.Radius * 2;
 
             if (Debug)
                 Lines.Add(new LineD { From = posExt, To = posInt });
@@ -170,16 +170,19 @@ namespace AtmosphericDamage
             return false;
         }
 
-        public static bool TryGetEntityExposedArea(Vector3D position, Vector3D direction, BoundingBoxD bbox, IMyEntity entity, MyPlanet planet, out double areaExposed)
+        public static bool TryGetEntityExposedArea(Vector3D position, Vector3D direction, BoundingBoxD bbox, IMyEntity entity, MyPlanet planet, out double areaExposed, out IMyEntity shield)
         {
             if (entity?.Physics == null)
             {
                 areaExposed = 0;
+                shield = null;
                 return false;
             }
 
+            var heightOverRadius = (position - planet.PositionComp.WorldVolume.Center).Length() / (planet.AverageRadius + planet.AtmosphereAltitude);
             var worldtolocal = MatrixD.Invert(MatrixD.Normalize(entity.WorldMatrix));
             var localdir = Vector3D.Transform(direction, worldtolocal);
+            localdir.Normalize();
             var bboxsize = bbox.Size;
             var bboxmin = bboxsize.AbsMin();
             var bboxmax = bboxsize.AbsMax();
@@ -190,11 +193,14 @@ namespace AtmosphericDamage
             }
             else
             {
-                areaExposed = bboxmax * bboxmax;
+                areaExposed = bboxmin * bboxmax;
             }
 
             var hits = new List<IHitInfo>();
-            MyAPIGateway.Physics.CastRay(entity.WorldVolume.Center, entity.WorldVolume.Center + direction * 50, hits);
+            MyAPIGateway.Physics.CastRay(position - direction * 2000, position, hits);
+
+            double shieldcover = 0;
+            shield = null;
 
             foreach (IHitInfo hit in hits)
             {
@@ -207,10 +213,42 @@ namespace AtmosphericDamage
                 if (hit.HitEntity.GetTopMostParent().EntityId == planet.EntityId)
                     break;
 
-                areaExposed = 0;
+                shield = hit.HitEntity;
+                var shielddist = (shield.WorldVolume.Center - position).Length() / shield.WorldVolume.Radius / heightOverRadius;
+                var shieldbbox = shield.LocalAABB;
+                var shieldworldtolocal = MatrixD.Invert(MatrixD.Normalize(shield.WorldMatrix));
+                var shieldlocaldir = Vector3D.Transform(direction, shieldworldtolocal);
+                double shieldarea;
 
-                return true;
+                shieldlocaldir.Normalize();
+                var shieldbboxsize = bbox.Size;
+                var shieldbboxmin = bboxsize.AbsMin();
+                var shieldbboxmax = bboxsize.AbsMax();
+
+                if (bboxmin < bboxmax / 2)
+                {
+                    shieldarea = shieldbbox.ProjectedArea(shieldlocaldir);
+                }
+                else
+                {
+                    shieldarea = shieldbboxmin * shieldbboxmax;
+                }
+
+                if (shielddist > 1)
+                {
+                    shieldarea /= shielddist * shielddist;
+                }
+
+                shieldcover = 1 - (1 - shieldcover) * (1 - shieldarea / areaExposed);
+
+                if (shieldcover >= 0.99)
+                {
+                    shieldcover = 0.99;
+                    break;
+                }
             }
+
+            areaExposed *= 1 - shieldcover;
 
             return true;
         }

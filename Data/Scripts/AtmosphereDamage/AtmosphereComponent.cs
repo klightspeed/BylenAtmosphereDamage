@@ -49,6 +49,7 @@ namespace AtmosphericDamage
             MyAPIGateway.Utilities.UnregisterMessageHandler(Config.PARTICLE_LIST_ID, HandleParticleRequest);
             MyAPIGateway.Utilities.UnregisterMessageHandler(Config.DAMAGE_LIST_ID, HandleDamageRequest);
             MyAPIGateway.Utilities.UnregisterMessageHandler(Config.DRAW_LIST_ID, HandleDrawRequest);
+            Logging.CloseInstance();
         }
 
         //Planet might not be fully initialized at Init, so do these on the first frame
@@ -60,7 +61,7 @@ namespace AtmosphericDamage
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
                 return;
             }
-            _sphere = new BoundingSphereD(_planet.PositionComp.GetPosition(), _planet.AverageRadius + _planet.AtmosphereAltitude + Config.OVERRIDE_ATMOSPHERE_HEIGHT);
+            _sphere = new BoundingSphereD(_planet.PositionComp.GetPosition(), _planet.AverageRadius + _planet.AtmosphereAltitude + Config.RADIATION_HEIGHT);
             
             MyAPIGateway.Utilities.RegisterMessageHandler(Config.PARTICLE_LIST_ID, HandleParticleRequest);
             MyAPIGateway.Utilities.RegisterMessageHandler(Config.DAMAGE_LIST_ID, HandleDamageRequest);
@@ -100,19 +101,21 @@ namespace AtmosphericDamage
                                             });
         }
 
-        private float GetDamageMultiplier(Vector3D position, Vector3D direction, IMyEntity entity, BoundingBoxD bbox)
+        private float GetDamageMultiplier(Vector3D position, Vector3D direction, IMyEntity entity, BoundingBoxD bbox, out IMyEntity shield, out double areaexposed)
         {
             var height = (position - _sphere.Center).Length() - _planet.AverageRadius - _planet.AtmosphereAltitude;
-            var fracdmg = (float)Math.Pow(Config.ATMOSPHERE_DAMAGE_EXPONENT, -height / _planet.AtmosphereAltitude);
-            double areaexposed;
+            float fracdmg = 1f;
+            areaexposed = 0;
+            shield = null;
 
-            if (Utilities.IsEntityInsideGrid(entity))
+            if (height > 0)
             {
-                fracdmg *= 0.005f;
-            }
-            else if (height > 0 && Utilities.TryGetEntityExposedArea(position, direction, bbox, entity, _planet, out areaexposed))
-            {
-                fracdmg *= 0.005f + (float)areaexposed;
+                fracdmg = (float)Math.Pow(height / Config.RADIATION_FALLOFF_DIST + 1, -2);
+
+                if (Utilities.TryGetEntityExposedArea(position, direction, bbox, entity, _planet, out areaexposed, out shield))
+                {
+                    fracdmg *= (float)areaexposed * 0.1f;
+                }
             }
 
             return fracdmg;
@@ -122,17 +125,14 @@ namespace AtmosphericDamage
         {
             foreach (IMyEntity entity in _topEntityCache)
             {
-                var height = (entity.WorldVolume.Center - _sphere.Center).Length() - _planet.AverageRadius - _planet.AtmosphereAltitude;
-                var direction = entity.WorldVolume.Center - _sphere.Center;
-                direction.Normalize();
-                direction = Utilities.GetRandomGroundFacingDirection(direction, height / _planet.AverageRadius);
-
                 var grid = entity as IMyCubeGrid;
                 if (grid?.Physics != null)
                 {
                     if (grid.Closed || grid.MarkedForClose)
                         continue;
 
+                    //Logging.Instance.WriteLine($"Processing grid {entity.EntityId} ({entity.DisplayName})");
+                    var height = (entity.WorldVolume.Center - _sphere.Center).Length() - _planet.AverageRadius - _planet.AtmosphereAltitude;
 
                     var blocks = new List<IMySlimBlock>();
                     grid.GetBlocks(blocks);
@@ -141,45 +141,92 @@ namespace AtmosphericDamage
 
                     for (var i = 0; i < Math.Max(1, Math.Min(20, blocks.Count * 3 / 10)); i++)
                     {
+                        var direction = entity.WorldVolume.Center - _sphere.Center;
+                        direction.Normalize();
+                        direction = Utilities.GetRandomGroundFacingDirection(direction, height / _planet.AverageRadius);
+
                         IMySlimBlock block;
 
-                        if (blocks.Count < 10)
+                        try
                         {
-                            block = blocks.GetRandomItemFromList();
+                            if (blocks.Count < 10)
+                            {
+                                block = blocks.GetRandomItemFromList();
+                            }
+                            else if (height < 0)
+                            {
+                                block = Utilities.GetRandomExteriorBlock(grid, blocks);
+                            }
+                            else
+                            {
+                                block = Utilities.GetBlockFromDirection(grid, blocks, direction);
+                            }
+
+                            if (block == null || _damageEntities.ContainsKey(block))
+                                continue;
+
+                            //Logging.Instance.WriteLine($"Processing block at {block.Position} in grid {entity.EntityId} ({entity.DisplayName})");
                         }
-                        else if (height < 0)
+                        catch (Exception ex)
                         {
-                            block = Utilities.GetRandomExteriorBlock(grid, blocks);
+                            Logging.Instance.WriteLine($"Error getting block for grid {entity.EntityId} ({entity.DisplayName}) direction {direction}: {ex}");
+                            continue;
+                        }
+
+                        float damage;
+                        
+                        if (height > 0)
+                        {
+                            damage = grid.GridSizeEnum == MyCubeSize.Small ? Config.SMALL_SHIP_RAD_DAMAGE : Config.LARGE_SHIP_RAD_DAMAGE;
                         }
                         else
                         {
-                            block = Utilities.GetBlockFromDirection(grid, blocks, direction);
+                            damage = grid.GridSizeEnum == MyCubeSize.Small ? Config.SMALL_SHIP_ATMO_DAMAGE : Config.LARGE_SHIP_ATMO_DAMAGE;
                         }
 
-                        if (block == null || _damageEntities.ContainsKey(block))
+                        try
+                        {
+                            Vector3D blockpos;
+                            block.ComputeWorldCenter(out blockpos);
+                            var size = grid.GridSize;
+                            var fatblock = block.FatBlock;
+                            var localbbox = fatblock?.LocalAABB ?? new BoundingBox(block.Min * size - size / 2f, block.Max * size + size / 2f);
+                            IMyEntity shield;
+                            double areaexposed;
+                            float areamult = GetDamageMultiplier(blockpos, direction, grid, localbbox, out shield, out areaexposed);
+                            damage *= areamult;
+                            var subtype = block.BlockDefinition.Id.SubtypeName;
+                            var funcblk = block.FatBlock as IMyFunctionalBlock;
+                            var thruster = block.FatBlock as IMyThrust;
+                            float powermult = 0;
+                            float curpower = float.NaN;
+                            float thrustmult = 0;
+                            float curthrust = float.NaN;
+
+                            if (thruster != null && thruster.MaxThrust != 0)
+                            {
+                                curthrust = thruster.CurrentThrust;
+                                thrustmult = 1f + curthrust * 10f / thruster.MaxThrust;
+                                damage *= thrustmult;
+                            }
+                            else if (funcblk != null)
+                            {
+                                curpower = funcblk.ResourceSink?.CurrentInputByType(MyResourceDistributorComponent.ElectricityId) ?? 0;
+                                powermult = 1f + curpower * 5f;
+                                curpower *= 1000000f;
+                                damage *= powermult;
+                            }
+
+                            if (damage > 0.01f)
+                            {
+                                Logging.Instance.WriteLine($"Damaging block {block.BlockDefinition.Id} ({block.BlockDefinition.DisplayNameText}) in grid {grid.EntityId} ({grid.CustomName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² health={block.Integrity * 100 / block.BuildIntegrity:0.0}% ({block.Integrity:0.00} / {block.MaxIntegrity:0.00})" + (powermult == 0 ? "" : $" pwr={curpower:0}W") + (thrustmult == 0 ? "" : $" thrust={curthrust:0}N") + ")" + (shield == null ? "" : $" Shield: {shield.EntityId} ({shield.GetFriendlyName()})"));
+                                _damageEntities.AddOrUpdate(block, damage);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Logging.Instance.WriteLine($"Error processing block at {block.Position} for grid {entity.EntityId} ({entity.DisplayName}) direction {direction}: {ex}");
                             continue;
-
-                        Vector3D blockpos;
-                        block.ComputeWorldCenter(out blockpos);
-                        var size = grid.GridSize;
-                        var fatblock = block.FatBlock;
-                        var localbbox = fatblock?.LocalAABB ?? new BoundingBox(block.Min * size - size / 2f, block.Max * size + size / 2f);
-                        float damage = grid.GridSizeEnum == MyCubeSize.Small ? Config.SMALL_SHIP_DAMAGE : Config.LARGE_SHIP_DAMAGE;
-                        damage *= GetDamageMultiplier(blockpos, direction, grid, localbbox);
-                        damage *= block.BuildLevelRatio / Math.Max(block.DamageRatio, 0.01f);
-                        var subtype = block.BlockDefinition.Id.SubtypeName;
-                        var funcblk = block.FatBlock as IMyFunctionalBlock;
-
-                        if (funcblk != null)
-                        {
-                            var curpower = funcblk.ResourceSink.CurrentInputByType(MyResourceDistributorComponent.ElectricityId);
-                            damage *= 1f + curpower * 5f;
-                        }
-
-                        if (damage > 0.1f)
-                        {
-                            Logging.Instance.WriteLine($"Damaging block {block.BlockDefinition.Id} ({block.BlockDefinition.DisplayNameText}) in grid {grid.EntityId} ({grid.CustomName}) with damage {damage}");
-                            _damageEntities.AddOrUpdate(block, damage);
                         }
                     }
 
@@ -192,20 +239,21 @@ namespace AtmosphericDamage
                     if (floating.Closed || floating.MarkedForClose)
                         continue;
 
+                    //Logging.Instance.WriteLine($"Processing floating object {entity.EntityId} ({entity.DisplayName})");
+                    var height = (entity.WorldVolume.Center - _sphere.Center).Length() - _planet.AverageRadius - _planet.AtmosphereAltitude;
+                    var direction = entity.WorldVolume.Center - _sphere.Center;
+                    direction.Normalize();
+                    direction = Utilities.GetRandomGroundFacingDirection(direction, height / _planet.AverageRadius);
+                    IMyEntity shield;
+                    double areaexposed;
+
                     var pos = entity.WorldVolume.Center;
-                    var fracdmg = GetDamageMultiplier(pos, direction, entity, entity.LocalAABB);
+                    var damage = (height > 0 ? Config.SMALL_SHIP_RAD_DAMAGE : Config.SMALL_SHIP_ATMO_DAMAGE) * GetDamageMultiplier(pos, direction, entity, entity.LocalAABB, out shield, out areaexposed);
 
-                    if (Config.SMALL_SHIP_DAMAGE * fracdmg > 0.1)
+                    if (damage > 0.01)
                     {
-                        Logging.Instance.WriteLine($"Damaging floating object {floating.EntityId} ({floating.DisplayName}) with damage {Config.SMALL_SHIP_DAMAGE * fracdmg}");
-                        _damageEntities.AddOrUpdate(floating, Config.SMALL_SHIP_DAMAGE * fracdmg);
-                    }
-
-                    Vector3D s = _planet.GetClosestSurfacePointGlobal(ref pos);
-                    if (Vector3D.DistanceSquared(pos, s) <= 4 && fracdmg < 1)
-                    {
-                        Logging.Instance.WriteLine($"Damaging floating object {floating.EntityId} ({floating.DisplayName}) with damage {Config.SMALL_SHIP_DAMAGE}");
-                        _damageEntities.AddOrUpdate(floating, Config.SMALL_SHIP_DAMAGE);
+                        Logging.Instance.WriteLine($"Damaging floating object {floating.EntityId} ({floating.DisplayName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² integrity={floating.Integrity:0.00})" + (shield == null ? null : $" Shield: {shield.EntityId} ({shield.DisplayName})"));
+                        _damageEntities.AddOrUpdate(floating, damage);
                     }
                 }
             }
@@ -221,24 +269,20 @@ namespace AtmosphericDamage
                     if (character.Closed || character.MarkedForClose)
                         continue;
 
-
                     Vector3D characterPos = character.WorldVolume.Center;
                     var height = (characterPos - _sphere.Center).Length() - _planet.AverageRadius - _planet.AtmosphereAltitude;
                     var direction = entity.WorldVolume.Center - _sphere.Center;
                     direction.Normalize();
                     direction = Utilities.GetRandomGroundFacingDirection(direction, height / _planet.AverageRadius);
-                    var fracdmg = GetDamageMultiplier(characterPos, direction, character, entity.LocalAABB);
+                    IMyEntity shield;
+                    double areaexposed;
+                    var damage = (height > 0 ? Config.PLAYER_RAD_DAMAGE : Config.PLAYER_ATMO_DAMAGE) * GetDamageMultiplier(characterPos, direction, character, entity.LocalAABB, out shield, out areaexposed);
 
-                    if (Config.PLAYER_DAMAGE_AMOUNT * fracdmg > 0.1)
+                    if (damage > 0.01)
                     {
-                        Logging.Instance.WriteLine($"Damaging character {character.EntityId} ({character.DisplayName}) with damage {Config.PLAYER_DAMAGE_AMOUNT * fracdmg}");
-                        _damageEntities.AddOrUpdate(character, Config.PLAYER_DAMAGE_AMOUNT * fracdmg);
+                        Logging.Instance.WriteLine($"Damaging character {character.EntityId} ({character.DisplayName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² health={character.Integrity:0.00})" + (shield == null ? null : $" Shield: {shield.EntityId} ({shield.DisplayName})"));
+                        _damageEntities.AddOrUpdate(character, damage);
                     }
-
-                    Vector3D surfacePos = _planet.GetClosestSurfacePointGlobal(ref characterPos);
-
-                    if (Vector3D.DistanceSquared(characterPos, surfacePos) < 6.25)
-                        _damageEntities.AddOrUpdate(character, Config.PLAYER_DAMAGE_AMOUNT);
                 }
             }
         }

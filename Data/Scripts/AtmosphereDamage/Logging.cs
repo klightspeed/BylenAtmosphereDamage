@@ -90,5 +90,14 @@ namespace AtmosphericDamage
             _writer.Flush();
             _writer.Close();
         }
+
+        public static void CloseInstance()
+        {
+            if (_instance != null)
+            {
+                _instance.Close();
+                _instance = null;
+            }
+        }
     }
 }
