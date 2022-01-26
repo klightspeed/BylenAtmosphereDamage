@@ -18,7 +18,6 @@ namespace AtmosphericDamage
         public const float SMALL_SHIP_RAD_DAMAGE = 1000f;
         public const float PLAYER_RAD_DAMAGE = 100f;
         public const string DAMAGE_STRING = PLANET_NAME + "Atmosphere";
-        public const float RADIATION_HEIGHT = 400000f;
         public const float RADIATION_FALLOFF_DIST = 3000f; // inverse square falloff distance
 
         public const double EMITTER_DRAW_DIST = 10000;

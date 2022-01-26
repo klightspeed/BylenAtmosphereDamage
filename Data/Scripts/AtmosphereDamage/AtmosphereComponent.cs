@@ -61,7 +61,7 @@ namespace AtmosphericDamage
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
                 return;
             }
-            _sphere = new BoundingSphereD(_planet.PositionComp.GetPosition(), _planet.AverageRadius + _planet.AtmosphereAltitude + Config.RADIATION_HEIGHT);
+            _sphere = new BoundingSphereD(_planet.PositionComp.GetPosition(), _planet.AtmosphereRadius);
             
             MyAPIGateway.Utilities.RegisterMessageHandler(Config.PARTICLE_LIST_ID, HandleParticleRequest);
             MyAPIGateway.Utilities.RegisterMessageHandler(Config.DAMAGE_LIST_ID, HandleDamageRequest);
@@ -219,7 +219,7 @@ namespace AtmosphericDamage
 
                             if (damage > 0.01f)
                             {
-                                Logging.Instance.WriteLine($"Damaging block {block.BlockDefinition.Id} ({block.BlockDefinition.DisplayNameText}) in grid {grid.EntityId} ({grid.CustomName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² health={block.Integrity * 100 / block.BuildIntegrity:0.0}% ({block.Integrity:0.00} / {block.MaxIntegrity:0.00})" + (powermult == 0 ? "" : $" pwr={curpower:0}W") + (thrustmult == 0 ? "" : $" thrust={curthrust:0}N") + ")" + (shield == null ? "" : $" Shield: {shield.EntityId} ({shield.GetFriendlyName()})"));
+                                //Logging.Instance.WriteLine($"Damaging block {block.BlockDefinition.Id} ({block.BlockDefinition.DisplayNameText}) in grid {grid.EntityId} ({grid.CustomName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² health={block.Integrity * 100 / block.BuildIntegrity:0.0}% ({block.Integrity:0.00} / {block.MaxIntegrity:0.00})" + (powermult == 0 ? "" : $" pwr={curpower:0}W") + (thrustmult == 0 ? "" : $" thrust={curthrust:0}N") + ")" + (shield == null ? "" : $" Shield: {shield.EntityId} ({shield.GetFriendlyName()})"));
                                 _damageEntities.AddOrUpdate(block, damage);
                             }
                         }
@@ -252,7 +252,7 @@ namespace AtmosphericDamage
 
                     if (damage > 0.01)
                     {
-                        Logging.Instance.WriteLine($"Damaging floating object {floating.EntityId} ({floating.DisplayName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² integrity={floating.Integrity:0.00})" + (shield == null ? null : $" Shield: {shield.EntityId} ({shield.DisplayName})"));
+                        //Logging.Instance.WriteLine($"Damaging floating object {floating.EntityId} ({floating.DisplayName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² integrity={floating.Integrity:0.00})" + (shield == null ? null : $" Shield: {shield.EntityId} ({shield.DisplayName})"));
                         _damageEntities.AddOrUpdate(floating, damage);
                     }
                 }
@@ -280,7 +280,7 @@ namespace AtmosphericDamage
 
                     if (damage > 0.01)
                     {
-                        Logging.Instance.WriteLine($"Damaging character {character.EntityId} ({character.DisplayName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² health={character.Integrity:0.00})" + (shield == null ? null : $" Shield: {shield.EntityId} ({shield.DisplayName})"));
+                        //Logging.Instance.WriteLine($"Damaging character {character.EntityId} ({character.DisplayName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² health={character.Integrity:0.00})" + (shield == null ? null : $" Shield: {shield.EntityId} ({shield.DisplayName})"));
                         _damageEntities.AddOrUpdate(character, damage);
                     }
                 }
