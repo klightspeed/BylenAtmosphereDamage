@@ -12,7 +12,7 @@ using VRage.Utils;
 using VRage.Voxels;
 using VRageMath;
 
-namespace AtmosphericDamage
+namespace BylenAtmosphericDamage
 {
     public static class Utilities
     {
@@ -241,9 +241,9 @@ namespace AtmosphericDamage
 
                 shieldcover = 1 - (1 - shieldcover) * (1 - shieldarea / areaExposed);
 
-                if (shieldcover >= 0.99)
+                if (shieldcover >= 0.998)
                 {
-                    shieldcover = 0.99;
+                    shieldcover = 0.998;
                     break;
                 }
             }

@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 using Sandbox.ModAPI;
 
-namespace AtmosphericDamage
+namespace BylenAtmosphericDamage
 {
     internal class Logging
     {

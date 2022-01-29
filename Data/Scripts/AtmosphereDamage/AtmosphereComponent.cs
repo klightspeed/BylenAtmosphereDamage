@@ -16,7 +16,7 @@ using VRage.ObjectBuilders;
 using VRage.Utils;
 using VRageMath;
 
-namespace AtmosphericDamage
+namespace BylenAtmosphericDamage
 {
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_Planet), false)]
     public class AtmosphereComponent : MyGameLogicComponent
@@ -61,6 +61,7 @@ namespace AtmosphericDamage
                 NeedsUpdate = MyEntityUpdateEnum.NONE;
                 return;
             }
+            Config.ReadConfig();
             _sphere = new BoundingSphereD(_planet.PositionComp.GetPosition(), _planet.AtmosphereRadius);
             
             MyAPIGateway.Utilities.RegisterMessageHandler(Config.PARTICLE_LIST_ID, HandleParticleRequest);
@@ -173,16 +174,8 @@ namespace AtmosphericDamage
                             continue;
                         }
 
-                        float damage;
-                        
-                        if (height > 0)
-                        {
-                            damage = grid.GridSizeEnum == MyCubeSize.Small ? Config.SMALL_SHIP_RAD_DAMAGE : Config.LARGE_SHIP_RAD_DAMAGE;
-                        }
-                        else
-                        {
-                            damage = grid.GridSizeEnum == MyCubeSize.Small ? Config.SMALL_SHIP_ATMO_DAMAGE : Config.LARGE_SHIP_ATMO_DAMAGE;
-                        }
+                        float damage = grid.GridSizeEnum == MyCubeSize.Small ? Config.SMALL_SHIP_RAD_DAMAGE : Config.LARGE_SHIP_RAD_DAMAGE;
+                        float atmodamage = grid.GridSizeEnum == MyCubeSize.Small ? Config.SMALL_SHIP_MAX_DAMAGE : Config.LARGE_SHIP_MAX_DAMAGE;
 
                         try
                         {
@@ -194,7 +187,7 @@ namespace AtmosphericDamage
                             IMyEntity shield;
                             double areaexposed;
                             float areamult = GetDamageMultiplier(blockpos, direction, grid, localbbox, out shield, out areaexposed);
-                            damage *= areamult;
+                            damage = Math.Min(damage * areamult, atmodamage);
                             var subtype = block.BlockDefinition.Id.SubtypeName;
                             var funcblk = block.FatBlock as IMyFunctionalBlock;
                             var thruster = block.FatBlock as IMyThrust;
@@ -248,7 +241,7 @@ namespace AtmosphericDamage
                     double areaexposed;
 
                     var pos = entity.WorldVolume.Center;
-                    var damage = (height > 0 ? Config.SMALL_SHIP_RAD_DAMAGE : Config.SMALL_SHIP_ATMO_DAMAGE) * GetDamageMultiplier(pos, direction, entity, entity.LocalAABB, out shield, out areaexposed);
+                    var damage = Math.Min(Config.SMALL_SHIP_MAX_DAMAGE, Config.SMALL_SHIP_RAD_DAMAGE * GetDamageMultiplier(pos, direction, entity, entity.LocalAABB, out shield, out areaexposed));
 
                     if (damage > 0.01)
                     {
@@ -276,7 +269,7 @@ namespace AtmosphericDamage
                     direction = Utilities.GetRandomGroundFacingDirection(direction, height / _planet.AverageRadius);
                     IMyEntity shield;
                     double areaexposed;
-                    var damage = (height > 0 ? Config.PLAYER_RAD_DAMAGE : Config.PLAYER_ATMO_DAMAGE) * GetDamageMultiplier(characterPos, direction, character, entity.LocalAABB, out shield, out areaexposed);
+                    var damage = Math.Min(Config.PLAYER_MAX_DAMAGE, Config.PLAYER_RAD_DAMAGE * GetDamageMultiplier(characterPos, direction, character, entity.LocalAABB, out shield, out areaexposed));
 
                     if (damage > 0.01)
                     {

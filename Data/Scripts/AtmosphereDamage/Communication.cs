@@ -7,7 +7,7 @@ using VRage.Game.ModAPI;
 using VRage.ModAPI;
 using VRageMath;
 
-namespace AtmosphericDamage
+namespace BylenAtmosphericDamage
 {
     public static class Communication
     {

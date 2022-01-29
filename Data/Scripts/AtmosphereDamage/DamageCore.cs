@@ -39,7 +39,7 @@ using VRageMath;
  *  lag by not processing enormous amounts of damage all at once.
  */
 
-namespace AtmosphericDamage
+namespace BylenAtmosphericDamage
 {
     //static class so that both components can access it
 

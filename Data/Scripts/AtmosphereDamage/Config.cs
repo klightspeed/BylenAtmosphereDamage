@@ -1,24 +1,25 @@
 ﻿using System.Collections.Generic;
 using Sandbox.Definitions;
+using Sandbox.ModAPI;
 using VRage.Collections;
 using VRage.Game;
 using VRage.Utils;
 
-namespace AtmosphericDamage
+namespace BylenAtmosphericDamage
 {
     public static class Config
     {
         /////////////////////CHANGE THESE FOR EACH PLANET////////////////////////////
 
         public const string PLANET_NAME = "Bylen"; // this mod targets planet Bylen
-        public const float LARGE_SHIP_ATMO_DAMAGE = 1000f; // applies 1000 damage to each block per update in the atmosphere
-        public const float SMALL_SHIP_ATMO_DAMAGE = 1000f;
-        public const float PLAYER_ATMO_DAMAGE = 100f;
-        public const float LARGE_SHIP_RAD_DAMAGE = 1000f; // applies 1000 damage (scaled by area) to each block per update at the top of the atmosphere
-        public const float SMALL_SHIP_RAD_DAMAGE = 1000f;
-        public const float PLAYER_RAD_DAMAGE = 100f;
+        public static float LARGE_SHIP_RAD_DAMAGE = 1000f; // applies 1000 damage (scaled by area) to each block per update at the top of the atmosphere
+        public static float SMALL_SHIP_RAD_DAMAGE = 1000f;
+        public static float PLAYER_RAD_DAMAGE = 5000f;
+        public static float LARGE_SHIP_MAX_DAMAGE = 1000f;
+        public static float SMALL_SHIP_MAX_DAMAGE = 1000f;
+        public static float PLAYER_MAX_DAMAGE = 20f;
         public const string DAMAGE_STRING = PLANET_NAME + "Atmosphere";
-        public const float RADIATION_FALLOFF_DIST = 3000f; // inverse square falloff distance
+        public static float RADIATION_FALLOFF_DIST = 3000f; // inverse square falloff distance
 
         public const double EMITTER_DRAW_DIST = 10000;
         /////////////////////////////////////////////////////////////////////////////
@@ -36,5 +37,39 @@ namespace AtmosphericDamage
         public const long DRAW_LIST_ID = 1684445163654733190;
         public const long PARTICLE_LIST_ID = 1684445163654733191;
         public const ushort NETWORK_ID = 51287;
+
+        private const string CONFIG_FILE_NAME = "config.txt";
+
+        public static void ReadConfig()
+        {
+            if (MyAPIGateway.Utilities.FileExistsInWorldStorage(CONFIG_FILE_NAME, typeof(Config)))
+            {
+                using (var reader = MyAPIGateway.Utilities.ReadFileInWorldStorage(CONFIG_FILE_NAME, typeof(Config)))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        var parts = line.Split(new[] { '=' }, 2);
+                        var name = parts[0].Trim().ToLower();
+                        var value = parts[1].Trim();
+                        float val;
+
+                        if (float.TryParse(value, out val))
+                        {
+                            switch (name)
+                            {
+                                case "large_ship_rad_damage": LARGE_SHIP_RAD_DAMAGE = val; break;
+                                case "large_ship_max_damage": LARGE_SHIP_MAX_DAMAGE = val; break;
+                                case "small_ship_rad_damage": SMALL_SHIP_RAD_DAMAGE = val; break;
+                                case "small_ship_max_damage": SMALL_SHIP_MAX_DAMAGE = val; break;
+                                case "player_rad_damage": PLAYER_RAD_DAMAGE = val; break;
+                                case "player_max_damage": PLAYER_MAX_DAMAGE = val; break;
+                                case "radiation_falloff_dist": RADIATION_FALLOFF_DIST = val; break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
