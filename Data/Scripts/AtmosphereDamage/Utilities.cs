@@ -337,7 +337,7 @@ namespace BylenAtmosphericDamage
         public static MyVoxelMaterialDefinition GetMaterialAt_R(this MyVoxelBase self, ref Vector3D worldPosition)
         {
             Vector3 localHitPos;
-            MyVoxelCoordSystems.WorldPositionToLocalPosition(worldPosition, self.PositionComp.WorldMatrix, self.PositionComp.WorldMatrixInvScaled, self.SizeInMetres / 2f, out localHitPos);
+            MyVoxelCoordSystems.WorldPositionToLocalPosition(worldPosition, self.PositionComp.WorldMatrixRef, self.PositionComp.WorldMatrixInvScaled, self.SizeInMetres / 2f, out localHitPos);
             Vector3I voxelPosition = new Vector3I(localHitPos / MyVoxelConstants.VOXEL_SIZE_IN_METRES) + self.StorageMin;
 
             return self.Storage.GetMaterialAt_R(ref voxelPosition);

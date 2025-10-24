@@ -19,7 +19,7 @@ namespace BylenAtmosphericDamage
 
         public static void RegisterHandlers()
         {
-            MyAPIGateway.Multiplayer.RegisterMessageHandler(Config.NETWORK_ID, ReceiveHandler);
+            MyAPIGateway.Multiplayer.RegisterSecureMessageHandler(Config.NETWORK_ID, ReceiveHandler);
         }
 
         public static void UnregisterHandlers()
@@ -70,8 +70,10 @@ namespace BylenAtmosphericDamage
             }
         }
 
-        private static void ReceiveHandler(byte[] data)
+        private static void ReceiveHandler(ushort handlerId, byte[] data, ulong steamId, bool fromServer)
         {
+            if (!fromServer) return;
+
             var type = (MessageType)data[0];
 
             switch (type)
