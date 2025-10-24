@@ -182,15 +182,13 @@ namespace BylenAtmosphericDamage
                 if (!_emitters.ContainsKey(e.Key))
                 {
                     MyParticleEffect eff;
-                    Vector3D worldPos = e.Key.GetPosition();
-                    MyParticlesManager.TryCreateParticleEffect(e.Value, out eff, ref MatrixD.Identity, ref worldPos, e.Key.CubeGrid.Render.GetRenderObjectID());
-                    var mat = new MatrixD();
-                    mat.Translation = e.Key.GetPosition();
+                    MatrixD particleMatrix = e.Key.CubeGrid.WorldMatrix;
+                    Vector3D particlePosition = e.Key.GetPosition();
+                    MyParticlesManager.TryCreateParticleEffect(e.Value, out eff, ref particleMatrix, ref particlePosition, uint.MaxValue);
 
-                    eff.WorldMatrix = mat;
-                    eff.Play();
-                    if(e.Key.CubeGrid.GridSizeEnum == MyCubeSize.Small)
+                    if (e.Key.CubeGrid.GridSizeEnum == MyCubeSize.Small)
                         eff.UserScale = 0.1f;
+
                     _emitters.Add(e.Key, eff);
                 }
             }
