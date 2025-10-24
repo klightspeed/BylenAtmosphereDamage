@@ -144,7 +144,7 @@ namespace BylenAtmosphericDamage
                     {
                         var direction = entity.WorldVolume.Center - _sphere.Center;
                         direction.Normalize();
-                        direction = Utilities.GetRandomGroundFacingDirection(direction, height / _planet.AverageRadius);
+                        direction = Utilities.GetRandomGroundFacingDirection(direction, height > 0 ? height / _planet.AverageRadius : height * 2 / _planet.AtmosphereAltitude);
 
                         IMySlimBlock block;
 
@@ -153,10 +153,6 @@ namespace BylenAtmosphericDamage
                             if (blocks.Count < 10)
                             {
                                 block = blocks.GetRandomItemFromList();
-                            }
-                            else if (height < 0)
-                            {
-                                block = Utilities.GetRandomExteriorBlock(grid, blocks);
                             }
                             else
                             {
@@ -236,7 +232,7 @@ namespace BylenAtmosphericDamage
                     var height = (entity.WorldVolume.Center - _sphere.Center).Length() - _planet.AverageRadius - _planet.AtmosphereAltitude;
                     var direction = entity.WorldVolume.Center - _sphere.Center;
                     direction.Normalize();
-                    direction = Utilities.GetRandomGroundFacingDirection(direction, height / _planet.AverageRadius);
+                    direction = Utilities.GetRandomGroundFacingDirection(direction, height > 0 ? height / _planet.AverageRadius : height * 2 / _planet.AtmosphereAltitude);
                     IMyEntity shield;
                     double areaexposed;
 
@@ -266,7 +262,7 @@ namespace BylenAtmosphericDamage
                     var height = (characterPos - _sphere.Center).Length() - _planet.AverageRadius - _planet.AtmosphereAltitude;
                     var direction = entity.WorldVolume.Center - _sphere.Center;
                     direction.Normalize();
-                    direction = Utilities.GetRandomGroundFacingDirection(direction, height / _planet.AverageRadius);
+                    direction = Utilities.GetRandomGroundFacingDirection(direction, height > 0 ? height / _planet.AverageRadius : height * 2 / _planet.AtmosphereAltitude);
                     IMyEntity shield;
                     double areaexposed;
                     var damage = Math.Min(Config.PLAYER_MAX_DAMAGE, Config.PLAYER_RAD_DAMAGE * GetDamageMultiplier(characterPos, direction, character, entity.LocalAABB, out shield, out areaexposed));

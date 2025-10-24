@@ -115,11 +115,46 @@ namespace BylenAtmosphericDamage
             return start + direction * distance;
         }
 
+        public static Vector3D RandomPositionOnSphere(Vector3D direction, double minlat, double maxlat)
+        {
+            direction.Normalize();
+            double lat = minlat + Random.NextDouble() * (maxlat - minlat);
+            double z = Math.Sin(lat);
+            double zSqrt = Math.Cos(lat);
+            double lon = Random.NextDouble() * 2 * Math.PI;
+            double x = zSqrt * Math.Cos(lon);
+            double y = zSqrt * Math.Sin(lon);
+
+            var xdir = Vector3D.CalculatePerpendicularVector(direction);
+            var ydir = Vector3D.Cross(direction, xdir);
+
+            return direction * z + xdir * x + ydir * y;
+        }
+
         public static Vector3D GetRandomGroundFacingDirection(Vector3D direction, double heightOverRadius)
         {
-            direction *= 1 + heightOverRadius;
-            direction = RandomPositionFromPoint(ref direction, 1f);
-            direction.Normalize();
+            if (heightOverRadius >= 0)
+            {
+                var maxlat = -Math.Acos(Math.Sqrt((heightOverRadius + 1) * (heightOverRadius + 1) - 1));
+                var minlat = -Math.PI / 2;
+                direction = RandomPositionOnSphere(direction, minlat, maxlat);
+                direction.Normalize();
+            }
+            else if (heightOverRadius > -1)
+            {
+                var maxlat = Math.Asin(-heightOverRadius * Math.PI / 2);
+                var minlat = -Math.PI / 2;
+                direction = RandomPositionOnSphere(-direction, minlat, maxlat);
+                direction.Normalize();
+            }
+            else
+            {
+                var maxlat = Math.PI / 2;
+                var minlat = -Math.PI / 2;
+                direction = RandomPositionOnSphere(-direction, minlat, maxlat);
+                direction.Normalize();
+            }
+
             return direction;
         }
 
