@@ -124,6 +124,8 @@ namespace BylenAtmosphericDamage
 
         private void ProcessDamage()
         {
+            var maxspeed = Math.Max(Math.Max(MyDefinitionManager.Static.EnvironmentDefinition.LargeShipMaxSpeed, MyDefinitionManager.Static.EnvironmentDefinition.SmallShipMaxSpeed), 100f);
+
             foreach (IMyEntity entity in _topEntityCache)
             {
                 var grid = entity as IMyCubeGrid;
@@ -156,7 +158,10 @@ namespace BylenAtmosphericDamage
                             }
                             else
                             {
-                                block = Utilities.GetBlockFromDirection(grid, blocks, direction);
+                                var dopplerdir = direction + entity.Physics.LinearVelocity / maxspeed;
+                                dopplerdir.Normalize();
+
+                                block = Utilities.GetBlockFromDirection(grid, blocks, dopplerdir);
                             }
 
                             if (block == null || _damageEntities.ContainsKey(block))
