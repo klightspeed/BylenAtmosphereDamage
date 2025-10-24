@@ -20,6 +20,7 @@ namespace BylenAtmosphericDamage
         public static float PLAYER_MAX_DAMAGE = 20f;
         public const string DAMAGE_STRING = PLANET_NAME + "Atmosphere";
         public static float RADIATION_FALLOFF_DIST = 3000f; // inverse square falloff distance
+        public static bool USE_RADIATION_HAZARD = true; // Use 1.207 radiation stat for characters
 
         public const double EMITTER_DRAW_DIST = 10000;
         /////////////////////////////////////////////////////////////////////////////
@@ -53,6 +54,16 @@ namespace BylenAtmosphericDamage
                         var name = parts[0].Trim().ToLower();
                         var value = parts[1].Trim();
                         float val;
+                        bool boolval;
+
+                        if (value.ToLowerInvariant() == "yes")
+                        {
+                            value = "true";
+                        }
+                        else if (value.ToLowerInvariant() == "no")
+                        {
+                            value = "false";
+                        }
 
                         if (float.TryParse(value, out val))
                         {
@@ -65,6 +76,14 @@ namespace BylenAtmosphericDamage
                                 case "player_rad_damage": PLAYER_RAD_DAMAGE = val; break;
                                 case "player_max_damage": PLAYER_MAX_DAMAGE = val; break;
                                 case "radiation_falloff_dist": RADIATION_FALLOFF_DIST = val; break;
+                                case "use_radiation_hazard": USE_RADIATION_HAZARD = val > 0; break;
+                            }
+                        }
+                        else if (bool.TryParse(value, out boolval))
+                        {
+                            switch (name)
+                            {
+                                case "use_radiation_hazard": USE_RADIATION_HAZARD = boolval; break;
                             }
                         }
                     }

@@ -286,7 +286,7 @@ namespace BylenAtmosphericDamage
                         var charStat = character?.Components.Get<MyCharacterStatComponent>();
                         var hazardReceiver = charStat as IMyHazardReceiver;
 
-                        if (hazardReceiver == null)
+                        if (hazardReceiver == null || !Config.USE_RADIATION_HAZARD)
                         {
                             //Logging.Instance.WriteLine($"Damaging character {character.EntityId} ({character.DisplayName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² health={character.Integrity:0.00})" + (shield == null ? null : $" Shield: {shield.EntityId} ({shield.DisplayName})"));
                             _damageEntities.AddOrUpdate(character, damage);
