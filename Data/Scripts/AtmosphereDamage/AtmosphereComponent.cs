@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Sandbox.Definitions;
+using Sandbox.Game.Components;
 using Sandbox.Game.Entities;
 using Sandbox.Game.Entities.Character.Components;
 using Sandbox.Game.EntityComponents;
@@ -23,6 +24,7 @@ namespace BylenAtmosphericDamage
     {
         private readonly Dictionary<IMySlimBlock, int> _blockParticles = new Dictionary<IMySlimBlock, int>();
         private readonly MyConcurrentDictionary<IMyDestroyableObject, float> _damageEntities = new MyConcurrentDictionary<IMyDestroyableObject, float>();
+        private readonly MyConcurrentDictionary<IMyHazardReceiver, float> _radiationReceivers = new MyConcurrentDictionary<IMyHazardReceiver, float>();
         private MyStringHash _damageHash;
         private readonly List<LineD> _lines = new List<LineD>();
         private MyPlanet _planet;
@@ -73,6 +75,13 @@ namespace BylenAtmosphericDamage
         {
             if (_processing) //worker thread is busy
                 return;
+
+            foreach (var pair in _radiationReceivers)
+            {
+                pair.Key.Apply(pair.Value, MyCharacterStatComponent.RADIATION_ID, MyDamageType.Radioactivity);
+            }
+
+            _radiationReceivers.Clear();
 
             _updateCount += 10;
             bool processCharacter = _updateCount % 60 == 0;
@@ -274,8 +283,19 @@ namespace BylenAtmosphericDamage
 
                     if (damage > 0.01)
                     {
-                        //Logging.Instance.WriteLine($"Damaging character {character.EntityId} ({character.DisplayName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² health={character.Integrity:0.00})" + (shield == null ? null : $" Shield: {shield.EntityId} ({shield.DisplayName})"));
-                        _damageEntities.AddOrUpdate(character, damage);
+                        var charStat = character?.Components.Get<MyCharacterStatComponent>();
+                        var hazardReceiver = charStat as IMyHazardReceiver;
+
+                        if (hazardReceiver == null)
+                        {
+                            //Logging.Instance.WriteLine($"Damaging character {character.EntityId} ({character.DisplayName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² health={character.Integrity:0.00})" + (shield == null ? null : $" Shield: {shield.EntityId} ({shield.DisplayName})"));
+                            _damageEntities.AddOrUpdate(character, damage);
+                        }
+                        else if (MyAPIGateway.Session.SessionSettings.EnableRadiation)
+                        {
+                            //Logging.Instance.WriteLine($"Irradiating character {character.EntityId} ({character.DisplayName}) with damage {damage} (height={height:0.00}m area={areaexposed:0.00}m² health={character.Integrity:0.00})" + (shield == null ? null : $" Shield: {shield.EntityId} ({shield.DisplayName})"));
+                            _radiationReceivers.AddOrUpdate(hazardReceiver, damage);
+                        }
                     }
                 }
             }
