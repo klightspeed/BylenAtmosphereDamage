@@ -135,15 +135,15 @@ namespace BylenAtmosphericDamage
         {
             if (heightOverRadius >= 0)
             {
-                var maxlat = -Math.Acos(Math.Sqrt((heightOverRadius + 1) * (heightOverRadius + 1) - 1));
-                var minlat = -Math.PI / 2;
+                var minlat = Math.Acos(Math.Sqrt((heightOverRadius + 1) * (heightOverRadius + 1) - 1));
+                var maxlat = Math.PI / 2;
                 direction = RandomPositionOnSphere(direction, minlat, maxlat);
                 direction.Normalize();
             }
             else if (heightOverRadius > -1)
             {
-                var maxlat = Math.Asin(-heightOverRadius * Math.PI / 2);
-                var minlat = -Math.PI / 2;
+                var minlat = -Math.Asin(-heightOverRadius * Math.PI / 2);
+                var maxlat = Math.PI / 2;
                 direction = RandomPositionOnSphere(-direction, minlat, maxlat);
                 direction.Normalize();
             }
